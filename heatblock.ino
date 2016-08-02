@@ -23,7 +23,7 @@
 float celsiusReading; // stores valid value read from temp sensor
 float celsiusTarget = NOHEAT; // target heating temperature
 byte stage = 0; // what stage are we on?
-unsigned long time,stopTime,lastTempReading;
+unsigned long time,targetTime,lastTempReading;
 Adafruit_NeoPixel LEDStrip = Adafruit_NeoPixel(LEDSTRIP_LEDS, LEDSTRIP_PIN, NEO_GRB + NEO_KHZ800);
 
 void setLEDStrip(byte r, byte g, byte b) {
@@ -67,24 +67,24 @@ void loop() {
     case 0:
       stage = 1;
       celsiusTarget = STAGE1TEMP;
-      stopTime = 0; // don't set stoptime until target is reached
+      targetTime = 0; // don't set stoptime until target is reached
       break;
     case 1:
-      if (!stopTime) { // if stopTime hasn't been set yet and is 0
-        if (celsiusReading > celsiusTarget) stopTime = time + STAGE1TIME;
+      if (!targetTime) { // if targetTime hasn't been set yet and is 0
+        if (celsiusReading > celsiusTarget) targetTime = time + STAGE1TIME;
       } else {
-        if (time > stopTime) {
+        if (time > targetTime) {
           stage = 2;
           celsiusTarget = STAGE2TEMP;
-          stopTime = 0; // don't set stoptime until target is reached
+          targetTime = 0; // don't set stoptime until target is reached
         }
       }
       break;
     case 2:
-      if (!stopTime) { // if stopTime hasn't been set yet and is 0
-        if (celsiusReading > celsiusTarget) stopTime = time + STAGE2TIME;
+      if (!targetTime) { // if targetTime hasn't been set yet and is 0
+        if (celsiusReading > celsiusTarget) targetTime = time + STAGE2TIME;
       } else {
-        if (time > stopTime) {
+        if (time > targetTime) {
           stage = 3;
           celsiusTarget = NOHEAT;
         }
@@ -95,7 +95,7 @@ void loop() {
       while(true) { // stay here forever
         printTime(millis());
         Serial.print("  Cycle Complete at ");
-        printTime(stopTime);
+        printTime(targetTime);
         Serial.print("  Heater OFF, temp = ");
         Serial.println(getTemp());
         setLEDStrip(0,255*(millis()%2000>1000),0); // blinking green LEDs
@@ -107,6 +107,8 @@ void loop() {
   byte colorTemp = constrain(((celsiusReading-25)/93)*255, 0, 255); // gradient from 0 at 25C, 255 at 93C
   setLEDStrip(colorTemp,0,255-colorTemp); // blue at or below 25C, red at or above 93C
   printTime(time);
+  Serial.print("  Stage ");
+  Serial.print(stage);
   if ((celsiusReading > TEMP_VALID_MIN) && (celsiusReading < TEMP_VALID_MAX)) {
     lastTempReading = time; // temperature sensor reported a sane value
     if (celsiusReading < celsiusTarget) {
@@ -116,7 +118,12 @@ void loop() {
       digitalWrite(HEATER_PIN,LOW); // turn off heater
       Serial.print("  Heater OFF  Temperature = ");
     }
-    Serial.println(celsiusReading);
+    Serial.print(celsiusReading);
+    Serial.print(" C  target: ");
+    Serial.print(celsiusTarget);
+    Serial.print(" C  targetTime: ");
+    printTime(targetTime);
+    Serial.println();
   } else {
     digitalWrite(HEATER_PIN,LOW); // turn off heater
     Serial.print("invalid temperature value ");

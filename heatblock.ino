@@ -1,9 +1,9 @@
 // I need that block to heat up to 63 degrees for half an our and then to 93 for 10 min. That's all really.
 
 #define STAGE1TEMP      63 // temperature for first stage
-#define STAGE1TIME      30*60*1000 // minutes times seconds times milliseconds
+#define STAGE1TIME      (30*60000) // minutes times seconds times milliseconds
 #define STAGE2TEMP      93 // temperature for second stage
-#define STAGE2TIME      10*60*1000 // minutes times seconds times milliseconds
+#define STAGE2TIME      (10*60000) // minutes times seconds times milliseconds
 
 #include <OneWire.h>
 #include <Adafruit_NeoPixel.h>

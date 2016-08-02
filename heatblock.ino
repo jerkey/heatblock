@@ -36,7 +36,9 @@ void setLEDStrip(byte r, byte g, byte b) {
 void printTime(unsigned long time) {
   Serial.print(time/60000); // time since boot in minutes
   Serial.print(":");
-  Serial.print((time%60000)/1000); // and seconds
+  byte seconds = (time%60000)/1000;
+  if (seconds < 10) Serial.print("0");
+  Serial.print(seconds); // and seconds
 }
 
 void setup() {

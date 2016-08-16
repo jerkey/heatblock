@@ -13,6 +13,7 @@
 #define LEDSTRIP_PIN    5 // string of WS2812B LEDs for tub status display
 #define LEDSTRIP_LEDS   10 // how many LEDs on the strip
 #define HEATER_PIN      7 // to turn on heater
+#define STATUS_LED_PIN  8 // on when heating, blinking when finished
 
 #define TEMP_VALID_MIN  -10 // below this temperature is considered an invalid reading
 #define TEMP_VALID_MAX  200 // above this temp is considered an invalid reading
@@ -44,6 +45,8 @@ void printTime(unsigned long time) {
 void setup() {
   tone(BEEPER_PIN, 800, 1000); // make a beep (non-blocking function)
   pinMode(HEATER_PIN, OUTPUT);
+  pinMode(STATUS_LED_PIN, OUTPUT);
+  digitalWrite(STATUS_LED_PIN,HIGH); // turn status LED on
   Serial.begin(57600);
   Serial.println("\nheatblock");
   while(! initTemp()){ // can't do anything without the temperature sensor
@@ -92,14 +95,18 @@ void loop() {
       break;
     case 3:
       digitalWrite(HEATER_PIN,LOW); // turn off heater
+      lastTempReading = 0;
       while(true) { // stay here forever
-        printTime(millis());
-        Serial.print("  Cycle Complete at ");
-        printTime(targetTime);
-        Serial.print("  Heater OFF, temp = ");
-        Serial.println(getTemp());
-        setLEDStrip(0,255*(millis()%2000>1000),0); // blinking green LEDs
-        delay(1000);
+        if (millis() - lastTempReading > 10000) {
+          printTime(millis());
+          Serial.print("  Cycle Complete at ");
+          printTime(targetTime);
+          Serial.print("  Heater OFF, temp = ");
+          Serial.println(getTemp());
+          lastTempReading = millis();
+        }
+        setLEDStrip(0,255*(millis()%1000>600),0); // blinking green LEDs
+        digitalWrite(STATUS_LED_PIN,(millis()%1000>600)); // blink the status LED since we're done
       }
   }
 

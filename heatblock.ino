@@ -14,7 +14,11 @@
 #define LEDSTRIP_LEDS   10 // how many LEDs on the strip
 #define HEATER_PIN      7 // to turn on heater
 #define STATUS_LED_PIN  8 // on when heating, blinking when finished
+#define VOLTAGE_PIN     A0 // 330K/100K resistor divider to power source
+#define VOLTAGE_COEFF   47.18 // ratio of ADC value to input voltage
+#define VOLTAGE_MINIMUM 7.0 // minimum voltage for heater operation
 
+#define ADC_OVERSAMPLE  25 // how many times to average ADC readings
 #define TEMP_VALID_MIN  -10 // below this temperature is considered an invalid reading
 #define TEMP_VALID_MAX  200 // above this temp is considered an invalid reading
 #define NOHEAT         -200 // set celsiusTarget to this if we don't want heat
@@ -26,6 +30,13 @@ float celsiusTarget = NOHEAT; // target heating temperature
 byte stage = 0; // what stage are we on?
 unsigned long time,targetTime,lastTempReading;
 Adafruit_NeoPixel LEDStrip = Adafruit_NeoPixel(LEDSTRIP_LEDS, LEDSTRIP_PIN, NEO_GRB + NEO_KHZ800);
+float voltage; // store retrieved voltage value
+
+float getVoltage() {
+  unsigned adder = 0; // store ADC samples here
+  for (int i=0; i < ADC_OVERSAMPLE; i++) adder += analogRead(VOLTAGE_PIN);
+  return ((float)adder/ADC_OVERSAMPLE)/VOLTAGE_COEFF;
+}
 
 void setLEDStrip(byte r, byte g, byte b) {
   for(byte i=0; i<LEDStrip.numPixels(); i++) {
@@ -60,6 +71,8 @@ void setup() {
   for (byte i=0; i<8; i++) Serial.print(DS18S20addr[i],HEX); // print address
   Serial.print("  DS18B20 temp sensor found, degrees C = ");
   Serial.println(getTemp());
+  Serial.print("Power supply voltage: ");
+  Serial.println(getVoltage(),1);
   LEDStrip.begin(); // init LED strip
   setLEDStrip(0,0,255); // set to blue
 }
@@ -101,8 +114,12 @@ void loop() {
           printTime(millis());
           Serial.print("  Cycle Complete at ");
           printTime(targetTime);
+          Serial.print(" at voltage ");
+          Serial.print(voltage,1); // prints last voltage of heating cycle
           Serial.print("  Heater OFF, temp = ");
-          Serial.println(getTemp());
+          Serial.print(getTemp());
+          Serial.print(" present voltage: ");
+          Serial.println(getVoltage(),1);
           lastTempReading = millis();
         }
         setLEDStrip(0,255*(millis()%1000>600),0); // blinking green LEDs
@@ -116,11 +133,17 @@ void loop() {
   printTime(time);
   Serial.print("  Stage ");
   Serial.print(stage);
+  voltage = getVoltage();
   if ((celsiusReading > TEMP_VALID_MIN) && (celsiusReading < TEMP_VALID_MAX)) {
     lastTempReading = time; // temperature sensor reported a sane value
     if (celsiusReading < celsiusTarget) {
-      digitalWrite(HEATER_PIN,HIGH); // turn on heater
-      Serial.print("  Heater ON   Temperature = ");
+      if (voltage > VOLTAGE_MINIMUM) {
+        digitalWrite(HEATER_PIN,HIGH); // turn on heater
+        Serial.print("  Heater ON   Temperature = ");
+      } else { // voltage is < VOLTAGE_MINIMUM
+        digitalWrite(HEATER_PIN,LOW); // turn off heater
+        Serial.print("  VOLTAGE TOO LOW!  Temperature = ");
+      }
     } else {
       digitalWrite(HEATER_PIN,LOW); // turn off heater
       Serial.print("  Heater OFF  Temperature = ");
@@ -130,11 +153,14 @@ void loop() {
     Serial.print(celsiusTarget);
     Serial.print(" C  targetTime: ");
     printTime(targetTime);
-    Serial.println();
+    Serial.print(" voltage: ");
+    Serial.println(voltage,1);
   } else {
     digitalWrite(HEATER_PIN,LOW); // turn off heater
     Serial.print("invalid temperature value ");
-    Serial.println(celsiusReading);
+    Serial.print(celsiusReading);
+    Serial.print(" voltage: ");
+    Serial.println(voltage,1);
   }
   delay(1000);
 }

@@ -12,10 +12,10 @@
 #define BEEPER_PIN      4 // make soothing noises for the yumens
 #define LEDSTRIP_PIN    5 // string of WS2812B LEDs for tub status display
 #define LEDSTRIP_LEDS   10 // how many LEDs on the strip
-#define HEATER_PIN      7 // to turn on heater
+#define RED_LED_PIN     7 // just a red LED
 #define STATUS_LED_PIN  8 // on when heating, blinking when finished
-#define VOLTAGE_PIN     A0 // 330K/100K resistor divider to power source
-#define VOLTAGE_COEFF   47.18 // ratio of ADC value to input voltage
+#define VOLTAGE_PIN     A0 // 330K/10K resistor divider to power source
+#define VOLTAGE_COEFF   47.18 // TODO: FIX THIS ratio of ADC value to input voltage
 #define VOLTAGE_MINIMUM 7.0 // minimum voltage for heater operation
 
 #define ADC_OVERSAMPLE  25 // how many times to average ADC readings
@@ -24,6 +24,15 @@
 #define NOHEAT         -200 // set celsiusTarget to this if we don't want heat
 
 #include "DS18S20.h" // reads temperature from the one digital temp sensor
+
+#define NUM_HEATERS     4
+// lowpass filters on analog 1..4 are 0.82μF and 6.8KΩ
+byte heater_i_pin[NUM_HEATERS] = {A1,A2,A3,A4};
+// lowpass filters from PWM pins to FET gates are 0.1μF and 10KΩ
+byte heater_pin[NUM_HEATERS] = {3,9,10,11};
+// heater current sense resistors are 0.15Ω to ground
+int heater_current[NUM_HEATERS] = {100,100,100,100};
+byte heater_pwm[NUM_HEATERS] = {0,0,0,0};
 
 float celsiusReading; // stores valid value read from temp sensor
 float celsiusTarget = NOHEAT; // target heating temperature
@@ -54,9 +63,13 @@ void printTime(unsigned long time) {
 }
 
 void setup() {
+  analogReference(INTERNAL1V1); // set analog reference to internal 1.1v source
   tone(BEEPER_PIN, 800, 1000); // make a beep (non-blocking function)
-  pinMode(HEATER_PIN, OUTPUT);
+  for (int i = 0; i++; i < NUM_HEATERS) pinMode(heater_pin[i], OUTPUT);
+  setPwmFrequency(3,8); // set PWM freq to 31250/8=3906.25 Hz
+  setPwmFrequency(9,8); // set PWM freq to 31250/8=3906.25 Hz
   pinMode(STATUS_LED_PIN, OUTPUT);
+  pinMode(RED_LED_PIN, OUTPUT); // we'll use this to indicate heaters status
   digitalWrite(STATUS_LED_PIN,HIGH); // turn status LED on
   Serial.begin(57600);
   Serial.println("\nheatblock");
@@ -165,3 +178,33 @@ void loop() {
   delay(1000);
 }
 
+void setPwmFrequency(int pin, int divisor) {
+  byte mode;
+  if(pin == 5 || pin == 6 || pin == 9 || pin == 10) {
+    switch(divisor) {
+      case 1: mode = 0x01; break;
+      case 8: mode = 0x02; break;
+      case 64: mode = 0x03; break;
+      case 256: mode = 0x04; break;
+      case 1024: mode = 0x05; break;
+      default: return;
+    }
+    if(pin == 5 || pin == 6) {
+      TCCR0B = TCCR0B & 0b11111000 | mode;
+    } else {
+      TCCR1B = TCCR1B & 0b11111000 | mode;
+    }
+  } else if(pin == 3 || pin == 11) {
+    switch(divisor) {
+      case 1: mode = 0x01; break;
+      case 8: mode = 0x02; break;
+      case 32: mode = 0x03; break;
+      case 64: mode = 0x04; break;
+      case 128: mode = 0x05; break;
+      case 256: mode = 0x06; break;
+      case 1024: mode = 0x07; break;
+      default: return;
+    }
+    TCCR2B = TCCR2B & 0b11111000 | mode;
+  }
+}

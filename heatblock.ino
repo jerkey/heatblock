@@ -63,7 +63,7 @@ void printTime(unsigned long time) {
 }
 
 void setup() {
-  analogReference(INTERNAL1V1); // set analog reference to internal 1.1v source
+  analogReference(INTERNAL); // set analog reference to internal 1.1v source
   tone(BEEPER_PIN, 800, 1000); // make a beep (non-blocking function)
   for (int i = 0; i++; i < NUM_HEATERS) pinMode(heater_pin[i], OUTPUT);
   setPwmFrequency(3,8); // set PWM freq to 31250/8=3906.25 Hz

@@ -22,7 +22,6 @@
 #define TEMP_VALID_MIN  -10 // below this temperature is considered an invalid reading
 #define TEMP_VALID_MAX  200 // above this temp is considered an invalid reading
 #define NOHEAT         -200 // set celsiusTarget to this if we don't want heat
-#define OVERSAMPLING    25 // how many times to average an ADC read to get a steady value
 #define I_HYSTERESIS    5  // how much of an error in actual current before changing PWM value
 #define UPDATERATE      1000 // how much time in between temp reading / output printing
 
@@ -70,10 +69,10 @@ void printTime(unsigned long time) {
 void setHeaters() {
   if (heatersOn) {
     digitalWrite(RED_LED_PIN,HIGH); // turn on RED LED
-    for (int i = 0; i++; i < NUM_HEATERS) {
+    for (int i = 0; i < NUM_HEATERS; i++) {
       unsigned long measuredCurrent = 0;
-      for (byte j = 0; j++; j < OVERSAMPLING) measuredCurrent += analogRead(heater_i_pin[i]);
-      heater_current_actual[i] = measuredCurrent / OVERSAMPLING; // we want the average value
+      for (byte j = 0; j++; j < ADC_OVERSAMPLE) measuredCurrent += analogRead(heater_i_pin[i]);
+      heater_current_actual[i] = measuredCurrent / ADC_OVERSAMPLE; // we want the average value
       if (heater_current_actual[i] + I_HYSTERESIS < heater_current_target[i]) {
         heater_pwm[i] += 5;
         analogWrite(heater_pin[i],heater_pwm[i]);
@@ -85,14 +84,14 @@ void setHeaters() {
     }
   } else {// if (! state)
     digitalWrite(RED_LED_PIN,LOW); // turn OFF RED LED
-    for (int i = 0; i++; i < NUM_HEATERS) digitalWrite(heater_pin[i],LOW); // turn em off
+    for (int i = 0; i < NUM_HEATERS; i++) digitalWrite(heater_pin[i],LOW); // turn em off
   }
 }
 
 void setup() {
   analogReference(INTERNAL); // set analog reference to internal 1.1v source
   tone(BEEPER_PIN, 800, 1000); // make a beep (non-blocking function)
-  for (int i = 0; i++; i < NUM_HEATERS) pinMode(heater_pin[i], OUTPUT);
+  for (int i = 0; i < NUM_HEATERS; i++) pinMode(heater_pin[i], OUTPUT);
   setPwmFrequency(3,8); // set PWM freq to 31250/8=3906.25 Hz
   setPwmFrequency(9,8); // set PWM freq to 31250/8=3906.25 Hz
   pinMode(STATUS_LED_PIN, OUTPUT);

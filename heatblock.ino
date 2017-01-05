@@ -32,7 +32,7 @@
 byte heater_i_pin[NUM_HEATERS] = {A1,A2,A3,A4};
 // lowpass filters from PWM pins to FET gates are 0.1μF and 10KΩ
 byte heater_pin[NUM_HEATERS] = {3,9,10,11};
-// heater current sense resistors are 0.15Ω to ground
+// heater current sense resistors are 0.15Ω to ground, so ADC 139.5 is about 1 AMP
 int heater_current_target[NUM_HEATERS] = {100,100,100,100}; // what do we want
 int heater_current_actual[NUM_HEATERS]; // where are we actually at
 byte heater_pwm[NUM_HEATERS] = {0,0,0,0};
@@ -123,6 +123,18 @@ void loop() {
     updateTemp();
   }
   setHeaters(); // do this continuously to keep transistor current values
+  delay(100);
+  Serial.print("I: ");
+  for (int i = 0; i < NUM_HEATERS; i++) {
+    Serial.print(heater_current_actual[i]);
+    Serial.print(", ");
+  }
+  Serial.print(", PWM: ");
+  for (int i = 0; i < NUM_HEATERS; i++) {
+    Serial.print(heater_pwm[i]);
+    Serial.print(", ");
+  }
+  Serial.println();
 }
 
 void setStage() {

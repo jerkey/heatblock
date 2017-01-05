@@ -15,7 +15,7 @@
 #define RED_LED_PIN     7 // just a red LED
 #define STATUS_LED_PIN  8 // on when heating, blinking when finished
 #define VOLTAGE_PIN     A0 // 330K/10K resistor divider to power source
-#define VOLTAGE_COEFF   47.18 // TODO: FIX THIS ratio of ADC value to input voltage
+#define VOLTAGE_COEFF   28.31 // ratio of ADC value to input voltage
 #define VOLTAGE_MINIMUM 7.0 // minimum voltage for heater operation
 
 #define ADC_OVERSAMPLE  25 // how many times to average ADC readings

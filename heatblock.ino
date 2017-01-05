@@ -24,6 +24,7 @@
 #define NOHEAT         -200 // set celsiusTarget to this if we don't want heat
 #define OVERSAMPLING    25 // how many times to average an ADC read to get a steady value
 #define I_HYSTERESIS    5  // how much of an error in actual current before changing PWM value
+#define UPDATERATE      1000 // how much time in between temp reading / output printing
 
 #include "DS18S20.h" // reads temperature from the one digital temp sensor
 
@@ -36,6 +37,7 @@ byte heater_pin[NUM_HEATERS] = {3,9,10,11};
 int heater_current_target[NUM_HEATERS] = {100,100,100,100}; // what do we want
 int heater_current_actual[NUM_HEATERS]; // where are we actually at
 byte heater_pwm[NUM_HEATERS] = {0,0,0,0};
+boolean heatersOn = false; // whether we want the heaters on or not
 
 float celsiusReading; // stores valid value read from temp sensor
 float celsiusTarget = NOHEAT; // target heating temperature
@@ -65,8 +67,8 @@ void printTime(unsigned long time) {
   Serial.print(seconds); // and seconds
 }
 
-void setHeaters(boolean state) {
-  if (state) {
+void setHeaters() {
+  if (heatersOn) {
     digitalWrite(RED_LED_PIN,HIGH); // turn on RED LED
     for (int i = 0; i++; i < NUM_HEATERS) {
       unsigned long measuredCurrent = 0;
@@ -75,7 +77,7 @@ void setHeaters(boolean state) {
       if (heater_current_actual[i] + I_HYSTERESIS < heater_current_target[i]) {
         heater_pwm[i] += 5;
         analogWrite(heater_pin[i],heater_pwm[i]);
-      } else 
+      } else
       if (heater_current_actual[i] - I_HYSTERESIS > heater_current_target[i]) {
         heater_pwm[i] -= 5;
         analogWrite(heater_pin[i],heater_pwm[i]);
@@ -117,6 +119,14 @@ void setup() {
 
 void loop() {
   time = millis();
+  if (time - lastTempReading > UPDATERATE) {
+    setStage();
+    updateTemp();
+  }
+  setHeaters(); // do this continuously to keep transistor current values
+}
+
+void setStage() {
   switch(stage) {
     case 0:
       stage = 1;
@@ -145,7 +155,8 @@ void loop() {
       }
       break;
     case 3:
-      setHeaters(false); // turn off heaters
+      heatersOn = false; // turn off heaters
+      setHeaters(); // turn off heaters
       lastTempReading = 0;
       while(true) { // stay here forever
         if (millis() - lastTempReading > 10000) {
@@ -164,7 +175,9 @@ void loop() {
         digitalWrite(STATUS_LED_PIN,(millis()%1000>600)); // blink the status LED since we're done
       }
   }
+}
 
+void updateTemp() {
   celsiusReading = getTemp();
   byte colorTemp = constrain(((celsiusReading-25)/93)*255, 0, 255); // gradient from 0 at 25C, 255 at 93C
   setLEDStrip(colorTemp,0,255-colorTemp); // blue at or below 25C, red at or above 93C
@@ -176,14 +189,14 @@ void loop() {
     lastTempReading = time; // temperature sensor reported a sane value
     if (celsiusReading < celsiusTarget) {
       if (voltage > VOLTAGE_MINIMUM) {
-        setHeaters(true); // turn on heaters
+        heatersOn = true; // turn on heaters
         Serial.print("  Heater ON   Temperature = ");
       } else { // voltage is < VOLTAGE_MINIMUM
-        setHeaters(false); // turn off heaters
+        heatersOn = false; // turn off heaters
         Serial.print("  VOLTAGE TOO LOW!  Temperature = ");
       }
     } else {
-      setHeaters(false); // turn off heaters
+      heatersOn = false; // turn off heaters
       Serial.print("  Heater OFF  Temperature = ");
     }
     Serial.print(celsiusReading);
@@ -194,7 +207,7 @@ void loop() {
     Serial.print(" voltage: ");
     Serial.println(voltage,1);
   } else {
-    setHeaters(false); // turn off heaters
+    heatersOn = false; // turn off heaters
     Serial.print("invalid temperature value ");
     Serial.print(celsiusReading);
     Serial.print(" voltage: ");
